@@ -1,0 +1,46 @@
+version: '2.1'
+services:
+  logstash:
+    image: docker.elastic.co/logstash/logstash:5.6.3
+    volumes:
+      - ./config/logstash-velobleu.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - 80:80
+    environment:
+      - XPACK_MONITORING_ENABLED=true
+      - "XPACK_MONITORING_ELASTICSEARCH_URL=http://elasticsearch-node-1:9200"
+      - XPACK_MONITORING_ELASTICSEARCH_USERNAME=logstash_system
+      - XPACK_MONITORING_ELASTICSEARCH_PASSWORD=changeme
+  elasticsearch-node-1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.6.3
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - cluster.name=elasticsearch-cluster-velobleu
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+    volumes:
+      - elasticsearch-node-1-volume:/usr/share/elasticsearch/data
+    healthcheck:
+      test: "curl http://localhost:9200"
+  kibana:
+    image: docker.elastic.co/kibana/kibana:5.6.3
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch-node-1:9200
+    healthcheck:
+      test: "curl http://localhost:5601"
+    depends_on:
+      elasticsearch-node-1:
+        condition: service_healthy
+
+volumes:
+  elasticsearch-node-1-volume:
+    driver: local
